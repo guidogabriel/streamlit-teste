@@ -22,12 +22,12 @@ with st.expander("⚙️ Configuração de Fontes de Dados", expanded=False):
     col1, col2 = st.columns(2)
     with col1:
         fonte_mag = st.selectbox(
-            "Planilha de Magistrados",
+            "Magistrados",
             ["MPM_Magistrados_2025_07.xlsx", "MPM_Magistrados_2025_06.xlsx", "MPM_Magistrados_2025_05.xlsx"]
         )
     with col2:
         fonte_serv = st.selectbox(
-            "Planilha de Servidores",
+            "Servidores",
             ["MPM_Servidores_2025_07.xlsx", "MPM_Servidores_2025_06.xlsx", "MPM_Servidores_2025_05.xlsx"]
         )
 
