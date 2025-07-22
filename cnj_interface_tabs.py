@@ -10,6 +10,7 @@ st.set_page_config(
     layout="wide"
 )
 
+
 # CSS customizado para design clean
 st.markdown("""
 <style>
