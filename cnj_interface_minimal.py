@@ -1,281 +1,298 @@
 import streamlit as st
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
+from datetime import datetime
 
 # Configuração da página
 st.set_page_config(
-    page_title="CNJ Indicadores",
+    page_title="CNJ - Sistema de Indicadores",
     page_icon="⚖️",
-    layout="centered"
+    layout="wide"
 )
 
-# CSS minimalista
+# CSS minimalista e profissional
 st.markdown("""
 <style>
     .stApp {
         background-color: #fafafa;
     }
     .main-title {
-        font-size: 28px;
-        font-weight: 300;
-        color: #2c3e50;
-        text-align: center;
-        margin-bottom: 10px;
+        font-size: 26px;
+        font-weight: 400;
+        color: #1a1a1a;
+        margin-bottom: 5px;
     }
-    .subtitle {
-        font-size: 16px;
-        color: #7f8c8d;
-        text-align: center;
-        margin-bottom: 40px;
+    .main-subtitle {
+        font-size: 14px;
+        color: #666;
+        margin-bottom: 20px;
     }
-    .indicator-label {
-        background: #e8f4f8;
-        padding: 8px 12px;
-        border-radius: 20px;
+    .data-source-bar {
+        background: #f0f7ff;
+        border: 1px solid #d0e4ff;
+        padding: 12px 20px;
+        border-radius: 6px;
+        margin-bottom: 25px;
+        font-size: 14px;
+        color: #0066cc;
+    }
+    .indicator-card {
+        background: white;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 20px;
+        height: 100%;
+        transition: box-shadow 0.2s;
+    }
+    .indicator-card:hover {
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .indicator-ref {
         font-size: 13px;
-        color: #2980b9;
-        display: inline-block;
+        color: #666;
+        font-weight: 600;
+        margin-bottom: 8px;
+    }
+    .indicator-name {
+        font-size: 16px;
+        font-weight: 500;
+        color: #1a1a1a;
         margin-bottom: 15px;
     }
-    .result-box {
-        background: white;
-        padding: 30px;
-        border-radius: 10px;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-        text-align: center;
-        margin: 20px 0;
+    .indicator-meta {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 12px;
     }
-    .big-number {
-        font-size: 64px;
-        font-weight: 200;
-        line-height: 1;
-        margin: 10px 0;
+    .result-container {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 15px;
+        padding-top: 15px;
+        border-top: 1px solid #f0f0f0;
     }
-    .approved {
-        color: #27ae60;
+    .result-percentage {
+        font-size: 20px;
+        font-weight: 600;
     }
-    .rejected {
-        color: #e74c3c;
+    .result-points {
+        font-size: 14px;
+        color: #666;
     }
-    .meta-info {
-        font-size: 12px;
-        color: #95a5a6;
-        margin-top: 20px;
-        padding-top: 20px;
-        border-top: 1px solid #ecf0f1;
+    .status-approved {
+        color: #00897b;
+    }
+    .status-rejected {
+        color: #e53935;
+    }
+    .summary-table {
+        margin-top: 30px;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Cabeçalho minimalista
-st.markdown('<h1 class="main-title">Calculadora de Indicadores CNJ</h1>', unsafe_allow_html=True)
-st.markdown('<p class="subtitle">Sistema simplificado para cálculo de indicadores do Prêmio CNJ de Qualidade</p>', unsafe_allow_html=True)
+# Cabeçalho
+st.markdown('<h1 class="main-title">⚖️ Sistema de Indicadores - Prêmio CNJ de Qualidade</h1>', unsafe_allow_html=True)
+st.markdown('<p class="main-subtitle">Eixo Dados e Tecnologia • Módulo de Pessoal e Estrutura Judiciária Mensal (MPM)</p>', unsafe_allow_html=True)
 
-# Dados dos indicadores
-indicadores = {
-    "magistrados": {
-        "ref": "Art. 12, II, b)",
-        "titulo": "Cadastro de Magistrados(as)",
-        "descricao": "Até 5,00% de magistrados(as) ativos com registro de inconsistência ou com ausência de informação no sistema MPM",
-        "meta": 5.0,
-        "pontos": 20,
-        "comprovacao": "Os campos preenchidos com 'não informado' serão considerados inválidos"
-    },
-    "servidores": {
-        "ref": "Art. 12, II, c)",
-        "titulo": "Cadastro de Servidores(as)",
-        "descricao": "Até 5,00% de servidores(as) ativos com registros inconsistentes ou com ausência de informação no sistema MPM",
-        "meta": 5.0,
-        "pontos": 20,
-        "cargos": [
-            "Servidor(a) efetivo(a) ou removido(a) para o Tribunal",
-            "Servidor(a) cedido(a) ou requisitado(a) de outro tribunal",
-            "Servidor(a) cedido(a) ou requisitado(a) de órgãos de fora do judiciário",
-            "Servidor(a) Comissionado(a) Sem vínculo"
-        ],
-        "comprovacao": "Os campos preenchidos com 'não informado' serão considerados inválidos"
-    }
-}
-
-# Estado para controlar qual indicador está expandido
-if 'current_indicator' not in st.session_state:
-    st.session_state.current_indicator = None
-
-# Indicador 1: Magistrados
-with st.expander("📋 **Cadastro de Magistrados(as)**", expanded=(st.session_state.current_indicator == 'magistrados')):
-    # Label do indicador
-    st.markdown(f'<span class="indicator-label">{indicadores["magistrados"]["ref"]}</span>', unsafe_allow_html=True)
+# Barra de seleção de fontes de dados (compacta)
+with st.container():
+    col1, col2, col3 = st.columns([2, 2, 1])
     
-    # Descrição
-    st.markdown(f'_{indicadores["magistrados"]["descricao"]}_')
-    
-    # Inputs em colunas
-    col1, col2 = st.columns(2)
     with col1:
-        total_mag = st.number_input(
-            "Total de magistrados(as) ativos",
-            min_value=1,
-            value=100,
-            key="total_mag"
+        fonte_mag = st.selectbox(
+            "📁 Fonte Magistrados",
+            ["MPM_Magistrados_2025_07.xlsx", "MPM_Magistrados_2025_06.xlsx", "MPM_Magistrados_2025_05.xlsx"],
+            label_visibility="collapsed"
         )
+    
     with col2:
-        incons_mag = st.number_input(
-            "Com inconsistências",
-            min_value=0,
-            value=3,
-            key="incons_mag"
+        fonte_serv = st.selectbox(
+            "📁 Fonte Servidores",
+            ["MPM_Servidores_2025_07.xlsx", "MPM_Servidores_2025_06.xlsx", "MPM_Servidores_2025_05.xlsx"],
+            label_visibility="collapsed"
         )
     
-    # Cálculo
-    perc_mag = (incons_mag / total_mag * 100) if total_mag > 0 else 0
-    aprovado_mag = perc_mag <= indicadores["magistrados"]["meta"]
-    pontos_mag = indicadores["magistrados"]["pontos"] if aprovado_mag else 0
-    
-    # Resultado
-    st.markdown('<div class="result-box">', unsafe_allow_html=True)
-    st.markdown(f'<div class="big-number {"approved" if aprovado_mag else "rejected"}">{perc_mag:.2f}%</div>', unsafe_allow_html=True)
-    st.markdown(f'**{"APROVADO" if aprovado_mag else "REPROVADO"}** • {pontos_mag}/{indicadores["magistrados"]["pontos"]} pontos')
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Gráfico simples
-    fig, ax = plt.subplots(figsize=(8, 2))
-    ax.barh([0], [perc_mag], height=0.5, color='#27ae60' if aprovado_mag else '#e74c3c', alpha=0.8)
-    ax.axvline(x=5, color='#e74c3c', linestyle='--', linewidth=2, label='Meta (5%)')
-    ax.set_xlim(0, 10)
-    ax.set_ylim(-0.5, 0.5)
-    ax.set_xlabel('Percentual de inconsistências (%)')
-    ax.set_yticks([])
-    ax.legend(loc='upper right')
-    ax.grid(axis='x', alpha=0.3)
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
-    
-    # Meta info
-    st.markdown(f"""
-    <div class="meta-info">
-    <strong>Forma de comprovação:</strong> {indicadores["magistrados"]["comprovacao"]}<br>
-    <strong>Referência:</strong> {indicadores["magistrados"]["ref"]} • Meta: ≤{indicadores["magistrados"]["meta"]}% • Pontuação máxima: {indicadores["magistrados"]["pontos"]} pontos
-    </div>
-    """, unsafe_allow_html=True)
+    with col3:
+        if st.button("⚙️ Configurações"):
+            st.info("Módulo de configurações em desenvolvimento")
 
-# Indicador 2: Servidores
-with st.expander("👥 **Cadastro de Servidores(as)**", expanded=(st.session_state.current_indicator == 'servidores')):
-    # Label do indicador
-    st.markdown(f'<span class="indicator-label">{indicadores["servidores"]["ref"]}</span>', unsafe_allow_html=True)
-    
-    # Descrição
-    st.markdown(f'_{indicadores["servidores"]["descricao"]}_')
-    
-    # Cargos considerados
-    st.markdown("**Cargos considerados:**")
-    for cargo in indicadores["servidores"]["cargos"]:
-        st.markdown(f"• {cargo}")
-    
-    # Inputs em colunas
-    col1, col2 = st.columns(2)
-    with col1:
-        total_serv = st.number_input(
-            "Total de servidores(as) ativos",
-            min_value=1,
-            value=500,
-            key="total_serv"
-        )
-    with col2:
-        incons_serv = st.number_input(
-            "Com inconsistências",
-            min_value=0,
-            value=15,
-            key="incons_serv"
-        )
-    
-    # Cálculo
-    perc_serv = (incons_serv / total_serv * 100) if total_serv > 0 else 0
-    aprovado_serv = perc_serv <= indicadores["servidores"]["meta"]
-    pontos_serv = indicadores["servidores"]["pontos"] if aprovado_serv else 0
-    
-    # Resultado
-    st.markdown('<div class="result-box">', unsafe_allow_html=True)
-    st.markdown(f'<div class="big-number {"approved" if aprovado_serv else "rejected"}">{perc_serv:.2f}%</div>', unsafe_allow_html=True)
-    st.markdown(f'**{"APROVADO" if aprovado_serv else "REPROVADO"}** • {pontos_serv}/{indicadores["servidores"]["pontos"]} pontos')
-    st.markdown('</div>', unsafe_allow_html=True)
-    
-    # Gráfico simples
-    fig, ax = plt.subplots(figsize=(8, 2))
-    ax.barh([0], [perc_serv], height=0.5, color='#27ae60' if aprovado_serv else '#e74c3c', alpha=0.8)
-    ax.axvline(x=5, color='#e74c3c', linestyle='--', linewidth=2, label='Meta (5%)')
-    ax.set_xlim(0, 10)
-    ax.set_ylim(-0.5, 0.5)
-    ax.set_xlabel('Percentual de inconsistências (%)')
-    ax.set_yticks([])
-    ax.legend(loc='upper right')
-    ax.grid(axis='x', alpha=0.3)
-    plt.tight_layout()
-    st.pyplot(fig)
-    plt.close()
-    
-    # Meta info
-    st.markdown(f"""
-    <div class="meta-info">
-    <strong>Forma de comprovação:</strong> {indicadores["servidores"]["comprovacao"]}<br>
-    <strong>Referência:</strong> {indicadores["servidores"]["ref"]} • Meta: ≤{indicadores["servidores"]["meta"]}% • Pontuação máxima: {indicadores["servidores"]["pontos"]} pontos
-    </div>
-    """, unsafe_allow_html=True)
-
-# Separador
-st.markdown("---")
-
-# Resumo compacto
-st.markdown("### 📊 Resumo dos Indicadores Calculados")
-
-# Criar dados do resumo apenas com indicadores calculados
-resumo_data = []
-
-if 'total_mag' in st.session_state and st.session_state.total_mag > 0:
-    perc_mag = (st.session_state.incons_mag / st.session_state.total_mag * 100)
-    resumo_data.append({
-        'Indicador': indicadores["magistrados"]["ref"],
-        'Descrição': 'Cadastro de Magistrados',
-        'Percentual': f'{perc_mag:.2f}%',
-        'Meta': '≤5%',
-        'Status': '✅' if perc_mag <= 5 else '❌',
-        'Pontos': f'{20 if perc_mag <= 5 else 0}/20'
-    })
-
-if 'total_serv' in st.session_state and st.session_state.total_serv > 0:
-    perc_serv = (st.session_state.incons_serv / st.session_state.total_serv * 100)
-    resumo_data.append({
-        'Indicador': indicadores["servidores"]["ref"],
-        'Descrição': 'Cadastro de Servidores',
-        'Percentual': f'{perc_serv:.2f}%',
-        'Meta': '≤5%',
-        'Status': '✅' if perc_serv <= 5 else '❌',
-        'Pontos': f'{20 if perc_serv <= 5 else 0}/20'
-    })
-
-if resumo_data:
-    df_resumo = pd.DataFrame(resumo_data)
-    st.dataframe(df_resumo, use_container_width=True, hide_index=True)
-else:
-    st.info("Calcule pelo menos um indicador para visualizar o resumo.")
-
-# Footer
-st.markdown("---")
-st.markdown("""
-<div class="meta-info" style="text-align: center;">
-<strong>Referência:</strong> <a href="https://atos.cnj.jus.br/atos/detalhar/5880" target="_blank">Ato CNJ nº 5880</a> • 
-Portaria Presidência Nº 411/2024 • Eixo Dados e Tecnologia
+st.markdown(f"""
+<div class="data-source-bar">
+    📊 <strong>Fontes ativas:</strong> Magistrados: {fonte_mag} | Servidores: {fonte_serv} | Referência: 31/07/2025
 </div>
 """, unsafe_allow_html=True)
 
-# Adicionar mais indicadores (placeholder)
-with st.expander("➕ **Adicionar Novo Indicador**", expanded=False):
-    st.info("""
-    Sistema preparado para expansão. Novos indicadores serão adicionados conforme necessidade:
-    - Art. 12, I - Alimentar DataJud (174 pontos)
-    - Art. 12, III - Saneamento DataJud por Unidade (30 pontos)
-    - Art. 12, IV - Processos Eletrônicos (50 pontos)
-    - Art. 12, V - Índice iGovTIC-JUD (60 pontos)
-    - E outros...
-    """)
+# Grid de indicadores
+st.markdown("### 📈 Indicadores Implementados")
+
+# Primeira linha de indicadores
+col1, col2 = st.columns(2)
+
+with col1:
+    with st.container():
+        st.markdown('<div class="indicator-card">', unsafe_allow_html=True)
+        st.markdown('<div class="indicator-ref">Art. 12, II, b)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="indicator-name">Cadastro de Magistrados(as)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="indicator-meta">Meta: ≤ 5% inconsistências • 20 pontos</div>', unsafe_allow_html=True)
+        
+        # Inputs inline
+        col_a, col_b = st.columns(2)
+        with col_a:
+            total_mag = st.number_input("Total ativos", min_value=1, value=150, key="mag_total", label_visibility="visible")
+        with col_b:
+            incons_mag = st.number_input("Inconsistências", min_value=0, value=5, key="mag_incons", label_visibility="visible")
+        
+        # Cálculo
+        perc_mag = (incons_mag / total_mag * 100) if total_mag > 0 else 0
+        aprovado_mag = perc_mag <= 5.0
+        pontos_mag = 20 if aprovado_mag else 0
+        
+        # Resultado
+        st.markdown(f"""
+        <div class="result-container">
+            <div>
+                <span class="result-percentage {'status-approved' if aprovado_mag else 'status-rejected'}">{perc_mag:.2f}%</span>
+                <span style="margin-left: 10px;">{'✅' if aprovado_mag else '❌'}</span>
+            </div>
+            <div class="result-points">{pontos_mag}/20 pts</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+with col2:
+    with st.container():
+        st.markdown('<div class="indicator-card">', unsafe_allow_html=True)
+        st.markdown('<div class="indicator-ref">Art. 12, II, c)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="indicator-name">Cadastro de Servidores(as)</div>', unsafe_allow_html=True)
+        st.markdown('<div class="indicator-meta">Meta: ≤ 5% inconsistências • 20 pontos</div>', unsafe_allow_html=True)
+        
+        # Inputs inline
+        col_a, col_b = st.columns(2)
+        with col_a:
+            total_serv = st.number_input("Total ativos", min_value=1, value=800, key="serv_total", label_visibility="visible")
+        with col_b:
+            incons_serv = st.number_input("Inconsistências", min_value=0, value=30, key="serv_incons", label_visibility="visible")
+        
+        # Cálculo
+        perc_serv = (incons_serv / total_serv * 100) if total_serv > 0 else 0
+        aprovado_serv = perc_serv <= 5.0
+        pontos_serv = 20 if aprovado_serv else 0
+        
+        # Resultado
+        st.markdown(f"""
+        <div class="result-container">
+            <div>
+                <span class="result-percentage {'status-approved' if aprovado_serv else 'status-rejected'}">{perc_serv:.2f}%</span>
+                <span style="margin-left: 10px;">{'✅' if aprovado_serv else '❌'}</span>
+            </div>
+            <div class="result-points">{pontos_serv}/20 pts</div>
+        </div>
+        """, unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+# Segunda linha - Indicadores futuros (placeholder)
+st.markdown("### 🔄 Em Desenvolvimento")
+
+col3, col4 = st.columns(2)
+
+with col3:
+    with st.container():
+        st.markdown("""
+        <div class="indicator-card" style="background: #f8f9fa; opacity: 0.7;">
+            <div class="indicator-ref">Art. 12, I</div>
+            <div class="indicator-name">Alimentar DataJud</div>
+            <div class="indicator-meta">174 pontos • Em implementação</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+with col4:
+    with st.container():
+        st.markdown("""
+        <div class="indicator-card" style="background: #f8f9fa; opacity: 0.7;">
+            <div class="indicator-ref">Art. 12, III</div>
+            <div class="indicator-name">Saneamento DataJud por Unidade</div>
+            <div class="indicator-meta">30 pontos • Em implementação</div>
+        </div>
+        """, unsafe_allow_html=True)
+
+# Resumo Geral
+st.markdown("---")
+st.markdown("### 📊 Resumo Geral dos Indicadores")
+
+# Métricas resumidas
+col1, col2, col3, col4 = st.columns(4)
+
+with col1:
+    st.metric("Indicadores Ativos", "2 de 11")
+with col2:
+    st.metric("Pontos Possíveis", "40")
+with col3:
+    total_obtidos = pontos_mag + pontos_serv
+    st.metric("Pontos Obtidos", f"{total_obtidos}")
+with col4:
+    aproveitamento = (total_obtidos / 40 * 100) if 40 > 0 else 0
+    st.metric("Aproveitamento", f"{aproveitamento:.0f}%")
+
+# Tabela resumo
+resumo_df = pd.DataFrame({
+    'Artigo': ['Art. 12, II, b)', 'Art. 12, II, c)', 'Art. 12, I', 'Art. 12, III', 'Art. 12, IV', 'Art. 12, V'],
+    'Indicador': [
+        'Cadastro de Magistrados(as)',
+        'Cadastro de Servidores(as)',
+        'Alimentar DataJud',
+        'Saneamento DataJud',
+        'Processos Eletrônicos',
+        'iGovTIC-JUD'
+    ],
+    'Meta': ['≤ 5%', '≤ 5%', '100%', '100%', '100%', 'Satisfatório'],
+    'Resultado': [
+        f'{perc_mag:.2f}%',
+        f'{perc_serv:.2f}%',
+        '-',
+        '-',
+        '-',
+        '-'
+    ],
+    'Pontos': [
+        f'{pontos_mag}/20',
+        f'{pontos_serv}/20',
+        '0/174',
+        '0/30',
+        '0/50',
+        '0/60'
+    ],
+    'Status': [
+        '✅' if aprovado_mag else '❌',
+        '✅' if aprovado_serv else '❌',
+        '⏳',
+        '⏳',
+        '⏳',
+        '⏳'
+    ]
+})
+
+st.dataframe(
+    resumo_df,
+    use_container_width=True,
+    hide_index=True,
+    column_config={
+        'Artigo': st.column_config.TextColumn('Referência', width='small'),
+        'Status': st.column_config.TextColumn('Status', width='small', help='✅ Aprovado | ❌ Reprovado | ⏳ Em desenvolvimento')
+    }
+)
+
+# Rodapé com ações
+col1, col2, col3 = st.columns([1, 1, 1])
+
+with col1:
+    if st.button("📥 Exportar Relatório", use_container_width=True):
+        st.success("Relatório exportado!")
+
+with col2:
+    if st.button("📊 Ver Histórico", use_container_width=True):
+        st.info("Funcionalidade em desenvolvimento")
+
+with col3:
+    if st.button("ℹ️ Sobre o Prêmio CNJ", use_container_width=True):
+        st.info("Base Legal: Ato CNJ nº 5880/2024 • Portaria nº 411/2024")
